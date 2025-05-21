@@ -1,120 +1,95 @@
-import sys
 import oqs
+#import KeyEncapsulation # This line assumes the oqspy library is installed
 
+def key_encapsulation_mechanism():
+    print("--- Demonstrating FIPS 203: Module-Lattice-Based KEM (CRYSTALS-Kyber) ---")
 
-def demonstrate_ml_kem():
-    """Demonstrate FIPS 203: ML-KEM for key encapsulation."""
-    print("=== FIPS 203: ML-KEM Demonstration ===")
-    kemalg = "ML-KEM-768"  # NIST-standardized algorithm
+    kem_alg = "Kyber1024" # Chosen from OQS supported algorithms
+
     try:
-        kem = oqs.KeyEncapsulation(kemalg)
-        
-        # Generate key pair
-        public_key = kem.generate_keypair()
-        
-        # Encapsulation (e.g., by recipient)
-        ciphertext, shared_secret_server = kem.encap_secret(public_key)
-        print(f"ML-KEM-768 encapsulation complete. Ciphertext size: {len(ciphertext)} bytes")
-        
-        # Decapsulation (e.g., by sender)
-        shared_secret_client = kem.decap_secret(ciphertext)
-        print("ML-KEM-768 decapsulation complete. Decapsulation is:", shared_secret_client)
-        
-        # Verify shared secret
-        assert shared_secret_server == shared_secret_client, "Shared secrets do not match!"
-        print("ML-KEM-768 shared secret established successfully.")
-        return shared_secret_client
-    except AttributeError as e:
-        print(f"Error in ML-KEM: {e}. Ensure 'oqs' library is updated and supports ML-KEM-768.")
-        return None
+        # Step 1: Receiver generates KEM keys
+        receiver_kem = oqs.KeyEncapsulation(kem_alg)
+        receiver_public_key = receiver_kem.generate_keypair()
+
+        # Step 2: Sender uses Receiver's public key to Encapsulation
+        sender_ciphertext, sender_shared_secret = receiver_kem.encap_secret(receiver_public_key)
+
+        # Step 3: Sender sends the ciphertext to Receiver and Receiver uses his private key to Decapsulation
+        receiver_shared_secret = receiver_kem.decap_secret(sender_ciphertext)
+
+        # Verify that both shared secrets are identical        
+        if receiver_shared_secret == sender_shared_secret:
+            print("[SUCCESS] Shared secrets match! Secure key established.")
+            print(f" Sender's Shared Secret  (first 16 bytes): {sender_shared_secret[:16].hex()}")
+            print(f" Receiver's Shared Secret (first 16 bytes): {receiver_shared_secret[:16].hex()}")
+        else:
+            print("[FAILURE] Shared secrets do NOT match!")
+
+    except ValueError as e:
+        print(f"Error: Could not initialize KEM algorithm '{kem_alg}'. It might not be available or supported. {e}")
+        print("Please ensure your oqspy installation supports the chosen algorithm.")
     except Exception as e:
-        print(f"Unexpected error in ML-KEM: {e}")
-        return None
+        print(f"An unexpected error occurred during KEM demonstration: {e}")
 
-def demonstrate_ml_dsa():
-    """Demonstrate FIPS 204: ML-DSA for digital signatures."""
-    print("\n=== FIPS 204: ML-DSA Demonstration ===")
-    sigalg = "ML-DSA-65"  # NIST-standardized algorithm
+def digital_signature():
+    print("\n--- Demonstrating FIPS 204: Module-Lattice-Based Digital Signature (CRYSTALS-Dilithium) ---")
+
+    sig_alg = "Dilithium5"
+    message = b"This is the confidential voting data from the national election."
+
     try:
-        signer = oqs.Signature(sigalg)
-        
-        # Generate key pair
-        public_key = signer.generate_keypair()
-        print("ML-DSA-65 key pair generated.")
-        
-        # Sign a message
-        message = b"Secure voting system message"
-        signature = signer.sign(message)
-        print(f"ML-DSA-65 signature created. Signature size: {len(signature)} bytes")
-        
-        # Verify signature
-        verifier = oqs.Signature(sigalg)
-        is_valid = verifier.verify(message, signature, public_key)
-        print("ML-DSA-65 signature verification:", "Valid" if is_valid else "Invalid")
-        return is_valid
-    except AttributeError as e:
-        print(f"Error in ML-DSA: {e}. Ensure 'oqs' library is updated and supports ML-DSA-65.")
-        return False
+        # Step 1: Signer generates a public to verify the signature and a private key to sign the message
+        signer_signer = oqs.Signature(sig_alg)
+        signer_public_key = signer_signer.generate_keypair()
+
+        # Sterp 2: Signer create a digital signature for the message using his private key
+        signature = signer_signer.sign(message)
+
+        # Step 3: Verifier uses the Signer's public key to verify the signature
+        responder_verifier = oqs.Signature(sig_alg)
+        is_valid = responder_verifier.verify(message, signature, signer_public_key)
+
+        if is_valid:
+            print("[SUCCESS] Signature is valid! Message integrity and authenticity confirmed.")
+        else:
+            print("[FAILURE] Signature is NOT valid!")
+
+    except ValueError as e:
+        print(f"Error: Could not initialize Signature algorithm '{sig_alg}'. It might not be available or supported. {e}")
+        print("Please ensure your oqspy installation supports the chosen algorithm.")
     except Exception as e:
-        print(f"Unexpected error in ML-DSA: {e}")
-        return False
+        print(f"An unexpected error occurred during Digital Signature demonstration: {e}")
 
-def demonstrate_slh_dsa():
-    """Demonstrate FIPS 205: SLH-DSA for digital signatures."""
-    print("\n=== FIPS 205: SLH-DSA Demonstration ===")
-    sigalg = "SLH-DSA-SHA2-192s"  # NIST-standardized algorithm
+def hash_based_signature():
+    print("\n--- Demonstrating FIPS 205: Stateless Hash-Based Digital Signature (SPHINCS+) ---")
+
+    sphincs_alg = "SPHINCS+-SHA2-128f-simple"
+    message = b"This is the official statement regarding the new government policy."
+
     try:
-        signer = oqs.Signature(sigalg)
+        # Step 1: Generating SPHINCS+ key pair for the initiator
+        initiator_signer = oqs.Signature(sphincs_alg)
+        initiator_public_key = initiator_signer.generate_keypair()
         
-        # Generate key pair
-        public_key = signer.generate_keypair()
-        print("SLH-DSA-SHA2-192s key pair generated.")
-        
-        # Sign a message
-        message = b"Secure voting system message"
-        signature = signer.sign(message)
-        print(f"SLH-DSA-SHA2-192s signature created. Signature size: {len(signature)} bytes")
-        
-        # Verify signature
-        verifier = oqs.Signature(sigalg)
-        is_valid = verifier.verify(message, signature, public_key)
-        print("SLH-DSA-SHA2-192s signature verification:", "Valid" if is_valid else "Invalid")
-        return is_valid
-    except AttributeError as e:
-        print(f"Error in SLH-DSA: {e}. Ensure 'oqs' library is updated and supports SLH-DSA-SHA2-192s.")
-        return False
+        # Step 2: Initiator signs the message using his private key
+        signature = initiator_signer.sign(message)
+
+        # Step 3: Responder verifies the signature using the initiator's public key
+        responder_verifier = oqs.Signature(sphincs_alg)
+        is_valid = responder_verifier.verify(message, signature, initiator_public_key)
+
+        if is_valid:
+            print("[SUCCESS] SPHINCS+ signature is valid! Message integrity and authenticity confirmed.")
+        else:
+            print("[FAILURE] SPHINCS+ signature is NOT valid!")
+
+    except ValueError as e:
+        print(f"Error: Could not initialize SPHINCS+ algorithm '{sphincs_alg}'. It might not be available or supported. {e}")
+        print("Please ensure your oqspy installation supports the chosen algorithm.")
     except Exception as e:
-        print(f"Unexpected error in SLH-DSA: {e}")
-        return False
-
-def main():
-    """Run demonstrations for FIPS 203, 204, and 205."""
-    print(f"Running PQC demo at {datetime.datetime.now(datetime.timezone.utc)}")
-    
-    # Check oqs version
-    try:
-        print(f"Using oqs-python version: {oqs.__version__}")
-    except AttributeError:
-        print("Warning: Could not retrieve oqs-python version.")
-    
-    # Demonstrate ML-KEM (FIPS 203)
-    shared_secret = demonstrate_ml_kem()
-    
-    # Demonstrate ML-DSA (FIPS 204)
-    ml_dsa_valid = demonstrate_ml_dsa()
-    
-    # Demonstrate SLH-DSA (FIPS 205)
-    slh_dsa_valid = demonstrate_slh_dsa()
-    
-    # Summary
-    print("\n=== Summary ===")
-    if shared_secret:
-        print("FIPS 203 (ML-KEM-768): Shared secret established.")
-    else:
-        print("FIPS 203 (ML-KEM-768): Failed to establish shared secret.")
-    print("FIPS 204 (ML-DSA-65): Signature", "valid" if ml_dsa_valid else "invalid")
-    print("FIPS 205 (SLH-DSA-SHA2-192s): Signature", "valid" if slh_dsa_valid else "invalid")
+        print(f"An unexpected error occurred during SPHINCS+ demonstration: {e}") 
 
 if __name__ == "__main__":
-    import datetime
-    main()
+    key_encapsulation_mechanism()
+    digital_signature()
+    hash_based_signature()
